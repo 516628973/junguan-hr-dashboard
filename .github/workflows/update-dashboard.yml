@@ -43,13 +43,16 @@ jobs:
       - name: 3. 生成 index.html
         run: python inject2.py
 
+      - name: 整理站点目录
+        run: mkdir -p site && cp index.html site/
+
       - name: 配置 GitHub Pages
         uses: actions/configure-pages@v5
 
       - name: 上传页面产物
         uses: actions/upload-pages-artifact@v3
         with:
-          path: index.html
+          path: site
 
       - name: 部署到 GitHub Pages
         id: deployment
