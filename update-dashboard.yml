@@ -1,0 +1,56 @@
+# 均冠人力资源看板自动更新流水线
+# 触发方式：
+#   1) 定时：每天 09:00 和 21:00（北京时间，cron 为 UTC，故为 1:00 / 13:00 UTC）
+#   2) 手动：仓库 Actions 页面点击 "Run workflow"
+# 流程：webhook 取数 → 重建指标 → 生成 index.html → 部署 GitHub Pages
+name: Update HR Dashboard
+
+on:
+  schedule:
+    - cron: '0 1,13 * * *'        # 每天 09:00 / 21:00 北京时间
+  workflow_dispatch:              # 支持手动触发
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 1. 从金山文档 webhook 取数
+        env:
+          KDOCS_WEBHOOK_URL: ${{ secrets.KDOCS_WEBHOOK_URL }}
+          KDOCS_AIRSCRIPT_TOKEN: ${{ secrets.KDOCS_AIRSCRIPT_TOKEN }}
+        run: python fetch_kdocs_roster.py
+
+      - name: 2. 重建看板指标
+        run: python build_data_v2.py
+
+      - name: 3. 生成 index.html
+        run: python inject2.py
+
+      - name: 配置 GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: 上传页面产物
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: index.html
+
+      - name: 部署到 GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
