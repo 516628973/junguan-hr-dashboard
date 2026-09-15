@@ -9,6 +9,9 @@ on:
   schedule:
     - cron: '0 1,13 * * *'        # 每天 09:00 / 21:00 北京时间
   workflow_dispatch:              # 支持手动触发
+  push:                           # 业务流静态页更新时触发部署（看板逻辑不变）
+    paths:
+      - 'sop/**'
 
 permissions:
   contents: read
@@ -44,7 +47,7 @@ jobs:
         run: python inject2.py
 
       - name: 整理站点目录
-        run: mkdir -p site && cp index.html site/
+        run: mkdir -p site && cp index.html site/ && mkdir -p site/sop && cp sop/index.html site/sop/index.html
 
       - name: 配置 GitHub Pages
         uses: actions/configure-pages@v5
