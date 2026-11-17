@@ -60,3 +60,32 @@ jobs:
       - name: 部署到 GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+  # GitHub 规则：默认分支 60 天无 push 会自动禁用定时工作流（本仓库 11-16 就被禁用过）。
+  # 每次成功运行后提交一个保活时间戳，重置不活跃计时器，实现自愈。
+  keepalive:
+    name: 保活提交
+    needs: build-and-deploy
+    if: needs['build-and-deploy'].result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: 检出 main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: 写入保活时间戳并推送
+        run: |
+          echo "last_run=$(date -u +%Y-%m-%dT%H:%M:%SZ) event=${{ github.event_name }} run=${{ github.run_id }}" > .github/keepalive.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/keepalive.txt
+          if git diff --cached --quiet; then
+            echo "保活文件无变化，跳过提交"
+          else
+            git commit -m "chore: 保活时间戳 [skip ci]"
+            git push origin HEAD:main
+          fi
