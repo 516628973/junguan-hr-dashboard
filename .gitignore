@@ -1,0 +1,9 @@
+# 中间产物由 Actions 每次运行重新生成，不入库以避免 PII 进入 git 历史
+roster_v2.json
+dashboard_data_v2.json
+index.html
+
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db

@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>均冠人力资源看板 · 2026-08</title>
-<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+<script>/*__ECHARTS__*/</script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif; background: #F2F5F9; color: #333; }
@@ -56,6 +56,9 @@
   .tb-empty { color: #999; text-align: center; padding: 14px; font-size: 13px; }
   .tag { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px; color: #fff; }
   .tag-在职 { background: #70AD47; } .tag-待离职 { background: #ED7D31; } .tag-离职 { background: #A6A6A6; }
+  .prob-due { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 11px; font-weight: 600; color: #8a5a00; background: #FFF3D6; border: 1px solid #ED7D31; white-space: nowrap; }
+  .prob-over { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 11px; font-weight: 600; color: #fff; background: #C0504D; white-space: nowrap; }
+  .prob-far { color: #666; white-space: nowrap; }
   footer { text-align: center; font-size: 12px; color: #999; padding: 10px 0 24px; }
   @media (max-width: 1100px) { .kpi-row { grid-template-columns: repeat(4, 1fr); } .chart-box { flex: 1 1 100%; } }
   @media print {
@@ -479,6 +482,21 @@
   }
   renderCatTabs();
   function fmtDate(s){ return s ? s : '<span class="empty">-</span>'; }
+  // 转正日期：仅「试用」类别且未离职的人员展示（正式员工已在花名册中转正确认，离职人员无意义）
+  var _snapT = (function(){ var s = D.snapshot || ''; var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s); return m ? Date.UTC(+m[1], +m[2] - 1, +m[3]) : null; })();
+  function probCells(p){
+    var show = p.category === '试用' && p.status !== '离职';
+    if (!show || !p.probation) return ['<span class="empty">-</span>', '<span class="empty">-</span>'];
+    var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(p.probation);
+    if (!m || _snapT === null) return [p.probation, '<span class="empty">-</span>'];
+    var days = Math.round((Date.UTC(+m[1], +m[2] - 1, +m[3]) - _snapT) / 86400000);
+    var dh;
+    if (days < 0) dh = '<span class="prob-over">已逾期 ' + (-days) + ' 天</span>';
+    else if (days === 0) dh = '<span class="prob-over">今日应转正</span>';
+    else if (days <= 30) dh = '<span class="prob-due">剩 ' + days + ' 天</span>';
+    else dh = '<span class="prob-far">剩 ' + days + ' 天</span>';
+    return ['<strong>' + p.probation + '</strong>', dh];
+  }
   function buildRoster(){
     var kw = (document.getElementById('searchInput').value || '').trim().toLowerCase();
     var reason = document.getElementById('reasonFilter').value;
@@ -496,9 +514,10 @@
       var t = [p.name, p.dept1, p.dept2, p.job, p.level, p.office, p.edu, p.leave_type, p.leave_reason].join(' ').toLowerCase();
       return t.indexOf(kw) >= 0;
     });
-    var html = '<table><thead><tr><th>状态</th><th>人员类别</th><th>工号</th><th>姓名</th><th>一级部门</th><th>二级部门</th><th>职位</th><th>性别</th><th>职级</th><th>办公点</th><th>学历</th><th>入职时间</th><th>司龄(年)</th><th>年龄</th><th>离职日期</th><th>离职类型</th></tr></thead><tbody>';
+    var html = '<table><thead><tr><th>状态</th><th>人员类别</th><th>工号</th><th>姓名</th><th>一级部门</th><th>二级部门</th><th>职位</th><th>性别</th><th>职级</th><th>办公点</th><th>学历</th><th>入职时间</th><th title="花名册「转正日期」列，仅试用人员展示">转正日期</th><th title="以数据快照日为基准计算">距转正</th><th>司龄(年)</th><th>年龄</th><th>离职日期</th><th>离职类型</th></tr></thead><tbody>';
     rows.forEach(function(p){
-      html += '<tr><td><span class="tag tag-' + p.status + '">' + p.status + '</span></td><td>' + (p.category || '<span class="empty">-</span>') + '</td><td>' + (p.id || '-') + '</td><td><strong>' + p.name + '</strong></td><td>' + p.dept1 + '</td><td>' + (p.dept2 || '<span class="empty">-</span>') + '</td><td>' + (p.job || '-') + '</td><td>' + (p.gender || '-') + '</td><td>' + (p.level || '<span class="empty">-</span>') + '</td><td>' + (p.office || '-') + '</td><td>' + (p.edu || '-') + '</td><td>' + fmtDate(p.hire) + '</td><td>' + (p.tenure !== '' ? p.tenure : '-') + '</td><td>' + (p.age || '-') + '</td><td>' + fmtDate(p.leave_date) + '</td><td>' + (p.leave_type || '<span class="empty">-</span>') + '</td></tr>';
+      var pc = probCells(p);
+      html += '<tr><td><span class="tag tag-' + p.status + '">' + p.status + '</span></td><td>' + (p.category || '<span class="empty">-</span>') + '</td><td>' + (p.id || '-') + '</td><td><strong>' + p.name + '</strong></td><td>' + p.dept1 + '</td><td>' + (p.dept2 || '<span class="empty">-</span>') + '</td><td>' + (p.job || '-') + '</td><td>' + (p.gender || '-') + '</td><td>' + (p.level || '<span class="empty">-</span>') + '</td><td>' + (p.office || '-') + '</td><td>' + (p.edu || '-') + '</td><td>' + fmtDate(p.hire) + '</td><td>' + pc[0] + '</td><td>' + pc[1] + '</td><td>' + (p.tenure !== '' ? p.tenure : '-') + '</td><td>' + (p.age || '-') + '</td><td>' + fmtDate(p.leave_date) + '</td><td>' + (p.leave_type || '<span class="empty">-</span>') + '</td></tr>';
     });
     html += '</tbody></table>';
     document.getElementById('rosterWrap').innerHTML = html;
@@ -628,10 +647,10 @@
     var T = D.tasks || { asof: '', onboarding: [], regularization: [], leaving: [], contract: [] };
     document.getElementById('taskMonth').textContent = T.asof ? '截至 ' + T.asof + '（未办理/未到来）' : '';
     var groups = [
-      { title: '待入职', color: '#70AD47', items: T.onboarding.map(function(x){ return { name: x.name, sub: x.dept + ' · ' + x.job, date: x.date }; }) },
-      { title: '转正', color: '#2E75B6', items: T.regularization.map(function(x){ return { name: x.name, sub: x.dept + ' · ' + x.job, date: x.date }; }) },
-      { title: '待离职', color: '#C0504D', items: T.leaving.map(function(x){ return { name: x.name, sub: x.dept + ' · ' + x.job, date: x.date }; }) },
-      { title: '劳动合同到期（45天内）', color: '#ED7D31', items: T.contract.map(function(x){ return { name: x.name, sub: x.dept + ' · ' + x.job, date: x.date }; }) }
+      { title: '待入职（全部未入职）', color: '#70AD47', overTag: '', items: T.onboarding.map(function(x){ return { name: x.name, sub: x.dept + ' · ' + x.job, date: x.date, overdue: false }; }) },
+      { title: '待转正（全部未转正）', color: '#2E75B6', overTag: '转正日已过', items: T.regularization.map(function(x){ return { name: x.name, sub: x.dept + ' · ' + x.job, date: x.date, overdue: x.overdue }; }) },
+      { title: '待离职（已登记·尚未离职）', color: '#C0504D', overTag: '', items: T.leaving.map(function(x){ return { name: x.name, sub: x.dept + ' · ' + x.job, date: x.date, overdue: false }; }) },
+      { title: '劳动合同到期（45天内·含已到期）', color: '#ED7D31', overTag: '已到期·预期', items: T.contract.map(function(x){ return { name: x.name, sub: x.dept + ' · ' + x.job, date: x.date, overdue: x.overdue }; }) }
     ];
     var html = '';
     groups.forEach(function(g){
@@ -641,7 +660,8 @@
       } else {
         html += '<ul>';
         g.items.forEach(function(it){
-          html += '<li><span><strong>' + it.name + '</strong> <span style="color:#888">' + it.sub + '</span></span><span class="tb-date">' + it.date + '</span></li>';
+          var tag = (it.overdue && g.overTag) ? '<span style="display:inline-block;margin-right:6px;padding:0 6px;border-radius:8px;background:#C0504D;color:#fff;font-size:11px;line-height:16px">' + g.overTag + '</span>' : '';
+          html += '<li><span><strong>' + it.name + '</strong> <span style="color:#888">' + it.sub + '</span></span><span class="tb-date">' + tag + it.date + '</span></li>';
         });
         html += '</ul>';
       }
